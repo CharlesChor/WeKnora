@@ -36,6 +36,19 @@ func TestFindBundledJiebaDictDir(t *testing.T) {
 	require.Equal(t, dictDir, findBundledJiebaDictDir(baseDir))
 }
 
+func TestFindBundledJiebaDictDirDepsFallback(t *testing.T) {
+	t.Parallel()
+
+	baseDir := t.TempDir()
+	dictDir := filepath.Join(baseDir, "deps", "cppjieba", "dict")
+	require.NoError(t, os.MkdirAll(dictDir, 0o755))
+	for _, name := range jiebaDictFiles {
+		require.NoError(t, os.WriteFile(filepath.Join(dictDir, name), []byte("test"), 0o644))
+	}
+
+	require.Equal(t, dictDir, findBundledJiebaDictDir(baseDir))
+}
+
 func TestFindBundledJiebaDictDirMissing(t *testing.T) {
 	t.Parallel()
 
