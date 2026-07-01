@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,7 +16,8 @@ var Jieba *gojieba.Jieba = newJieba()
 
 func newJieba() (jieba *gojieba.Jieba) {
 	defer func() {
-		if recover() != nil {
+		if err := recover(); err != nil {
+			log.Printf("jieba initialization failed, falling back to degraded tokenization: %v", err)
 			jieba = nil
 		}
 	}()
@@ -49,6 +51,7 @@ func fallbackJiebaCut(text string) []string {
 		return []string{text}
 	}
 
+	// Use overlapping 2-rune n-grams as a lightweight approximation for CJK tokenization.
 	words := make([]string, 0, len(runes)-1)
 	for i := 0; i < len(runes)-1; i++ {
 		words = append(words, string(runes[i:i+2]))
