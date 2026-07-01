@@ -45,7 +45,7 @@ ENV GO_VERSION=${GO_VERSION_ARG}
 
 # Build the application with version info
 RUN --mount=type=cache,target=/go/pkg/mod make build-prod
-RUN --mount=type=cache,target=/go/pkg/mod cp -r /go/pkg/mod/github.com/yanyiwu/ /app/yanyiwu/
+RUN --mount=type=cache,target=/go/pkg/mod sh -c 'set -e; for dir in /go/pkg/mod/github.com/yanyiwu/gojieba@*; do cp -r "$dir/deps/cppjieba/dict" /app/jieba-dict; break; done'
 
 # Final stage
 FROM debian:12.12-slim
@@ -53,6 +53,7 @@ FROM debian:12.12-slim
 WORKDIR /app
 
 ARG APK_MIRROR_ARG
+ENV JIEBA_DICT_DIR=/app/jieba-dict
 
 # Create a non-root user first
 RUN useradd -m -s /bin/bash appuser
@@ -89,10 +90,10 @@ RUN mkdir -p /data/files && \
 
 # Copy migrate tool from builder stage
 COPY --from=builder /go/bin/migrate /usr/local/bin/
-COPY --from=builder /app/yanyiwu/ /go/pkg/mod/github.com/yanyiwu/
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/config ./config
+COPY --from=builder /app/jieba-dict ./jieba-dict
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/dataset/samples ./dataset/samples

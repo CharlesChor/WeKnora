@@ -23,7 +23,7 @@ func newJieba() (jieba *gojieba.Jieba) {
 		}
 	}()
 
-	dictDir := os.Getenv("JIEBA_DICT_DIR")
+	dictDir := resolveJiebaDictDir()
 	if dictDir == "" {
 		return gojieba.NewJieba()
 	}
@@ -35,6 +35,65 @@ func newJieba() (jieba *gojieba.Jieba) {
 		filepath.Join(dictDir, "idf.utf8"),
 		filepath.Join(dictDir, "stop_words.utf8"),
 	)
+}
+
+var jiebaDictFiles = []string{
+	"jieba.dict.utf8",
+	"hmm_model.utf8",
+	"user.dict.utf8",
+	"idf.utf8",
+	"stop_words.utf8",
+}
+
+func resolveJiebaDictDir() string {
+	if dictDir := os.Getenv("JIEBA_DICT_DIR"); jiebaDictDirExists(dictDir) {
+		return dictDir
+	}
+
+	if jiebaDictDirExists(gojieba.DICT_DIR) {
+		return gojieba.DICT_DIR
+	}
+
+	if executable, err := os.Executable(); err == nil {
+		if dictDir := findBundledJiebaDictDir(filepath.Dir(executable)); dictDir != "" {
+			return dictDir
+		}
+	}
+
+	if cwd, err := os.Getwd(); err == nil {
+		if dictDir := findBundledJiebaDictDir(cwd); dictDir != "" {
+			return dictDir
+		}
+	}
+
+	return ""
+}
+
+func findBundledJiebaDictDir(baseDir string) string {
+	for _, dir := range []string{
+		filepath.Join(baseDir, "jieba-dict"),
+		filepath.Join(baseDir, "deps", "cppjieba", "dict"),
+	} {
+		if jiebaDictDirExists(dir) {
+			return dir
+		}
+	}
+	return ""
+}
+
+func jiebaDictDirExists(dictDir string) bool {
+	if dictDir == "" {
+		return false
+	}
+
+	for _, name := range jiebaDictFiles {
+		info, err := os.Stat(filepath.Join(dictDir, name))
+		if err != nil || info.IsDir() {
+			return false
+		}
+	}
+
+	return true
 }
 
 func fallbackTokenize(text string) []string {
