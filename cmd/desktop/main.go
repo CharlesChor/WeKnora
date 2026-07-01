@@ -162,6 +162,7 @@ func main() {
 
 	// Load .env explicitly for the desktop app so DB_DRIVER gets loaded
 	_ = godotenv.Load()
+	applyDesktopEnvDefaults()
 	configureDesktopStorage(execPath)
 	logger.ConfigureFromEnv()
 
@@ -348,6 +349,23 @@ func main() {
 
 	if err != nil {
 		println("Error:", err.Error())
+	}
+}
+
+// applyDesktopEnvDefaults sets fallback values for env vars required by the
+// desktop / Lite edition when no .env file is present (e.g. first run or a
+// packaged .app bundle without a user-supplied config). Only variables that
+// are completely absent (empty string) are set; any value already loaded from
+// .env or the shell environment is left untouched.
+func applyDesktopEnvDefaults() {
+	defaults := map[string]string{
+		"DB_DRIVER":       "sqlite",
+		"RETRIEVE_DRIVER": "sqlite",
+	}
+	for k, v := range defaults {
+		if os.Getenv(k) == "" {
+			_ = os.Setenv(k, v)
+		}
 	}
 }
 
