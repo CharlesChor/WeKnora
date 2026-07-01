@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/yanyiwu/gojieba"
@@ -12,7 +13,13 @@ import (
 // Jieba is a global instance of Chinese text segmentation tool
 var Jieba *gojieba.Jieba = newJieba()
 
-func newJieba() *gojieba.Jieba {
+func newJieba() (jieba *gojieba.Jieba) {
+	defer func() {
+		if recover() != nil {
+			jieba = nil
+		}
+	}()
+
 	dictDir := os.Getenv("JIEBA_DICT_DIR")
 	if dictDir == "" {
 		return gojieba.NewJieba()
@@ -25,6 +32,44 @@ func newJieba() *gojieba.Jieba {
 		filepath.Join(dictDir, "idf.utf8"),
 		filepath.Join(dictDir, "stop_words.utf8"),
 	)
+}
+
+func fallbackJiebaCut(text string) []string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil
+	}
+
+	if words := strings.Fields(text); len(words) > 1 {
+		return words
+	}
+
+	runes := []rune(text)
+	if len(runes) <= 2 {
+		return []string{text}
+	}
+
+	words := make([]string, 0, len(runes)-1)
+	for i := 0; i < len(runes)-1; i++ {
+		words = append(words, string(runes[i:i+2]))
+	}
+	return words
+}
+
+// JiebaCut safely tokenizes text with jieba and falls back when dictionaries are unavailable.
+func JiebaCut(text string, hmm bool) []string {
+	if Jieba == nil {
+		return fallbackJiebaCut(text)
+	}
+	return Jieba.Cut(text, hmm)
+}
+
+// JiebaCutForSearch safely tokenizes text with jieba search mode and falls back when unavailable.
+func JiebaCutForSearch(text string, hmm bool) []string {
+	if Jieba == nil {
+		return fallbackJiebaCut(text)
+	}
+	return Jieba.CutForSearch(text, hmm)
 }
 
 // EvaluationStatue represents the status of an evaluation task
