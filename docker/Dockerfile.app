@@ -45,7 +45,7 @@ ENV GO_VERSION=${GO_VERSION_ARG}
 
 # Build the application with version info
 RUN --mount=type=cache,target=/go/pkg/mod make build-prod
-RUN --mount=type=cache,target=/go/pkg/mod sh -c 'set -e; for dir in /go/pkg/mod/github.com/yanyiwu/gojieba@*; do cp -r "$dir/deps/cppjieba/dict" /app/jieba-dict; break; done'
+RUN --mount=type=cache,target=/go/pkg/mod sh -c 'set -e; version="$(go list -m -f '\''{{.Version}}'\'' github.com/yanyiwu/gojieba)"; cp -r "/go/pkg/mod/github.com/yanyiwu/gojieba@${version}/deps/cppjieba/dict" /app/jieba-dict'
 
 # Final stage
 FROM debian:12.12-slim

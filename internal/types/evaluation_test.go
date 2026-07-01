@@ -35,3 +35,9 @@ func TestFindBundledJiebaDictDir(t *testing.T) {
 
 	require.Equal(t, dictDir, findBundledJiebaDictDir(baseDir))
 }
+
+func TestFindBundledJiebaDictDirMissing(t *testing.T) {
+	t.Parallel()
+
+	require.Empty(t, findBundledJiebaDictDir(t.TempDir()))
+}
