@@ -18,7 +18,7 @@ var Jieba *gojieba.Jieba = newJieba()
 func newJieba() (jieba *gojieba.Jieba) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("jieba initialization failed, falling back to degraded tokenization: %v", err)
+			log.Printf("WARNING: jieba initialization failed, using fallback tokenization: %v", err)
 			jieba = nil
 		}
 	}()
