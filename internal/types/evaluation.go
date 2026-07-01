@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/yanyiwu/gojieba"
 )
@@ -36,41 +37,86 @@ func newJieba() (jieba *gojieba.Jieba) {
 	)
 }
 
-func fallbackJiebaCut(text string) []string {
+func fallbackTokenize(text string) []string {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return nil
 	}
 
-	if words := strings.Fields(text); len(words) > 1 {
-		return words
+	if !containsChinese(text) {
+		return strings.Fields(text)
 	}
 
-	runes := []rune(text)
-	if len(runes) <= 2 {
-		return []string{text}
+	var (
+		tokens     []string
+		segment    []rune
+		segChinese bool
+		segInit    bool
+	)
+
+	flush := func() {
+		if len(segment) == 0 {
+			return
+		}
+		part := string(segment)
+		if segChinese {
+			runes := []rune(part)
+			if len(runes) <= 2 {
+				tokens = append(tokens, part)
+			} else {
+				// Use overlapping 2-rune n-grams as a lightweight approximation for Chinese tokenization.
+				for i := 0; i < len(runes)-1; i++ {
+					tokens = append(tokens, string(runes[i:i+2]))
+				}
+			}
+		} else {
+			tokens = append(tokens, strings.Fields(part)...)
+		}
+		segment = segment[:0]
 	}
 
-	// Use overlapping 2-rune n-grams as a lightweight approximation for CJK tokenization.
-	words := make([]string, 0, len(runes)-1)
-	for i := 0; i < len(runes)-1; i++ {
-		words = append(words, string(runes[i:i+2]))
+	for _, r := range text {
+		isChinese := unicode.Is(unicode.Han, r)
+		if !segInit {
+			segChinese = isChinese
+			segInit = true
+		}
+		if isChinese != segChinese {
+			flush()
+			segChinese = isChinese
+		}
+		segment = append(segment, r)
 	}
-	return words
+	flush()
+	return tokens
+}
+
+func containsChinese(text string) bool {
+	for _, r := range text {
+		if unicode.Is(unicode.Han, r) {
+			return true
+		}
+	}
+	return false
 }
 
 // JiebaCut safely tokenizes text with jieba and falls back when dictionaries are unavailable.
+// The hmm parameter controls Hidden Markov Model-based segmentation for unknown words.
+// In fallback mode, hmm is ignored and simplified tokenization is used.
 func JiebaCut(text string, hmm bool) []string {
 	if Jieba == nil {
-		return fallbackJiebaCut(text)
+		return fallbackTokenize(text)
 	}
 	return Jieba.Cut(text, hmm)
 }
 
 // JiebaCutForSearch safely tokenizes text with jieba search mode and falls back when unavailable.
+// The hmm parameter controls Hidden Markov Model-based segmentation for unknown words.
+// Search mode returns finer-grained tokens than JiebaCut for better recall in retrieval.
+// In fallback mode, hmm is ignored and simplified tokenization is used.
 func JiebaCutForSearch(text string, hmm bool) []string {
 	if Jieba == nil {
-		return fallbackJiebaCut(text)
+		return fallbackTokenize(text)
 	}
 	return Jieba.CutForSearch(text, hmm)
 }
