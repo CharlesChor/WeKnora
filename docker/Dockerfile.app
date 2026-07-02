@@ -45,7 +45,7 @@ ENV GO_VERSION=${GO_VERSION_ARG}
 
 # Build the application with version info
 RUN --mount=type=cache,target=/go/pkg/mod make build-prod
-RUN --mount=type=cache,target=/go/pkg/mod cp -r /go/pkg/mod/github.com/yanyiwu/ /app/yanyiwu/
+RUN --mount=type=cache,target=/go/pkg/mod cp -r /go/pkg/mod/github.com/yanyiwu/gojieba@v1.4.7/deps/cppjieba/dict /app/jieba-dict
 
 # Final stage
 FROM debian:12.12-slim
@@ -89,7 +89,10 @@ RUN mkdir -p /data/files && \
 
 # Copy migrate tool from builder stage
 COPY --from=builder /go/bin/migrate /usr/local/bin/
-COPY --from=builder /app/yanyiwu/ /go/pkg/mod/github.com/yanyiwu/
+COPY --from=builder /app/jieba-dict /app/jieba-dict
+
+# Set jieba dictionary directory
+ENV JIEBA_DICT_DIR=/app/jieba-dict
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/config ./config
