@@ -1,12 +1,69 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "go build -tags=server -o main ./cli/main.go"
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "docker/Dockerfile.app"
   },
   "deploy": {
-    "startCommand": "./main",
+    "numReplicas": 1,
+    "sleepApplication": false,
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 3
+    "healthcheckPath": "/api/v1/health",
+    "healthcheckTimeout": 120
+  },
+  "services": {
+    "weknora-app": {
+      "name": "weknora-app",
+      "source": {
+        "repo": "CharlesChor/WeKnora"
+      },
+      "build": {
+        "builder": "DOCKERFILE",
+        "dockerfilePath": "docker/Dockerfile.app"
+      },
+      "env": {
+        "PORT": "8080",
+        "APP_ENV": "production",
+        "DB_HOST": "${{PostgreSQL.DATABASE_HOST}}",
+        "DB_PORT": "${{PostgreSQL.DATABASE_PORT}}",
+        "DB_USER": "${{PostgreSQL.DATABASE_USER}}",
+        "DB_PASSWORD": "${{PostgreSQL.DATABASE_PASSWORD}}",
+        "DB_NAME": "${{PostgreSQL.DATABASE_NAME}}",
+        "REDIS_HOST": "${{Redis.REDIS_HOST}}",
+        "REDIS_PORT": "${{Redis.REDIS_PORT}}",
+        "REDIS_PASSWORD": "${{Redis.REDIS_PASSWORD}}",
+        "DOCREADER_HOST": "${{weknora-docreader.RAILWAY_PRIVATE_DOMAIN}}",
+        "DOCREADER_PORT": "8000"
+      }
+    },
+    "weknora-docreader": {
+      "name": "weknora-docreader",
+      "source": {
+        "repo": "CharlesChor/WeKnora"
+      },
+      "build": {
+        "builder": "DOCKERFILE",
+        "dockerfilePath": "docker/Dockerfile.docreader"
+      },
+      "env": {
+        "PORT": "8000"
+      }
+    },
+    "PostgreSQL": {
+      "name": "postgres",
+      "image": "ankane/pgvector:v0.5.1",
+      "env": {
+        "POSTGRES_DB": "weknora",
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_PASSWORD": "${{RAILWAY_PASSWORD}}"
+      }
+    },
+    "Redis": {
+      "name": "redis",
+      "image": "redis:7-alpine",
+      "env": {
+        "REDIS_PASSWORD": "${{RAILWAY_PASSWORD}}"
+      }
+    }
   }
 }
