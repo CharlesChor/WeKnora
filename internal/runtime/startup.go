@@ -137,6 +137,33 @@ func LogStartupEnv(ctx context.Context) {
 			"[startup-env] SYSTEM_AES_KEY is set but %d bytes long; AES-256 requires exactly 32 bytes — encryption is DISABLED",
 			len(k))
 	}
+
+	// Warn when DB_DRIVER is unset — the server will fail immediately with
+	// "unsupported database driver: " which is hard to diagnose without
+	// this hint.
+	dbDriver := os.Getenv("DB_DRIVER")
+	if dbDriver == "" {
+		logger.Warn(ctx, "[startup-env] DB_DRIVER is not set; supported values are \"postgres\" and \"sqlite\" — database init will fail")
+	}
+
+	// Warn when required postgres connection variables are absent. An empty
+	// password is deliberately not flagged: PostgreSQL supports password-less
+	// connections (e.g. trust authentication), so DB_PASSWORD may be
+	// intentionally blank.
+	if dbDriver == "postgres" {
+		required := []string{"DB_HOST", "DB_PORT", "DB_USER", "DB_NAME"}
+		var missing []string
+		for _, name := range required {
+			if os.Getenv(name) == "" {
+				missing = append(missing, name)
+			}
+		}
+		if len(missing) > 0 {
+			logger.Warnf(ctx,
+				"[startup-env] DB_DRIVER=postgres but the following required variables are not set: %s — postgres connection will fail",
+				strings.Join(missing, ", "))
+		}
+	}
 }
 
 func formatEnvValue(s envVarSpec, val string) string {
